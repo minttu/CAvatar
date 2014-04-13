@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
@@ -66,8 +67,8 @@ void make_image(const char *str, struct evbuffer *evb, int side) {
     }
     
     if(mw) {
-        mw = DestroyMagickWand(mw);
-        dw = DestroyDrawingWand(dw);
+        DestroyMagickWand(mw);
+        DestroyDrawingWand(dw);
         DestroyPixelWands(pw, 2);
     }
     free(color);
@@ -78,39 +79,84 @@ void make_image(const char *str, struct evbuffer *evb, int side) {
 void route_index(struct evhttp_request *req, void *arg) {
     struct evbuffer *evb = evbuffer_new();
     const char *uri = evhttp_request_get_uri(req);
-    fprintf(stdout, "%s\n", uri);
-    if(strcmp(uri, "/") != 0) {
+    struct evkeyvalq *query = malloc(sizeof(struct evkeyvalq *));
+    evhttp_parse_query(uri, query);
+    const char *parq = evhttp_find_header(query, "q");
+    const char *pars = evhttp_find_header(query, "s");
+    if(parq) {
         uri += 4;
-        char *m = malloc(sizeof(char)*33);
-        sprintf(m, "/%s", md5(uri, strlen(uri)));
+        char *m = malloc(sizeof(char)*64);
+        char *md = md5(uri, strlen(uri));
+        if(pars) {
+            sprintf(m, "/%s/%d", md, atoi(pars));
+        } else {
+            sprintf(m, "/%s", md);
+        }
         evhttp_add_header(evhttp_request_get_output_headers(req),
                           "Location", m);
+        free(m);
+        free(md);
         evhttp_add_header(evhttp_request_get_output_headers(req),
                           "Content-Type", "text/html");
         evhttp_send_reply(req, 301, "Moved Permanently", evb);
     } else {
-        evbuffer_add_printf(evb, "<!DOCTYPE HTML>\n<html>\n<head>\n"
-                                 "\t<meta charset=\"utf-8\">\n</head>\n"
-                                 "<body>\n"
-                                 "<form method=\"GET\">"
-                                 "<input type=\"text\" name=\"q\">"
-                                 "<input type=\"submit\">"
-                                 "</body>\n</html>");
+        struct evbuffer *evb = evbuffer_new();
+        int fd = -1;
+        struct stat st;
+        if (stat("index.html", &st)<0) {
+            goto error;
+        }
+        if ((fd = open("index.html", O_RDONLY)) < 0) {
+            goto error;
+        }
+        evbuffer_add_file(evb, fd, 0, st.st_size);
+
         evhttp_add_header(evhttp_request_get_output_headers(req), 
                           "Content-Type", "text/html");
         evhttp_send_reply(req, 200, "OK", evb);
     }
+    goto done;
+error:
+    evhttp_send_error(req, 400, "Terrible request. Please try again.");
+done:
     if(evb) {
         evbuffer_free(evb);
     }
 }
 
-void route_generic(struct evhttp_request *req, void *arg) {
+void route_favicon(struct evhttp_request *req, void *arg) {
+    struct evbuffer *evb = evbuffer_new();
+    int fd = -1;
+    struct stat st;
+    if (stat("favicon.ico", &st)<0) {
+        goto error;
+    }
+    if ((fd = open("favicon.ico", O_RDONLY)) < 0) {
+        goto error;
+    }
+    evhttp_add_header(evhttp_request_get_output_headers(req),
+                      "Content-Type", "image/x-icon");
+    evhttp_add_header(evhttp_request_get_output_headers(req),
+                      "Cache-Control", "max-age=90000, public");
+    evbuffer_add_file(evb, fd, 0, st.st_size);
+    evhttp_send_reply(req, 200, "OK", evb);
+
+    goto done;
+error:
+    evhttp_add_header(evhttp_request_get_output_headers(req),
+                      "Content-Type", "text/plain");
+    evhttp_send_error(req, 400, "Terrible request. Please try again.");
+done:
+    if(evb) {
+        evbuffer_free(evb);
+    }
+}
+
+void route_image(struct evhttp_request *req, void *arg) {
     struct evbuffer *evb = NULL;
     // redisReply *reply;
 
     const char *uri = evhttp_request_get_uri(req);
-    fprintf(stdout, "%s\n", uri);
 
     int side = 128;
     char *hash = "";
@@ -166,10 +212,38 @@ error:
                       "Content-Type", "text/plain");
     evhttp_send_error(req, 400, "Terrible request. Please try again.");
 done:
-    //freeReplyObject(reply);
     if(evb) {
         evbuffer_free(evb);
     }
+}
+
+void router(struct evhttp_request *req, void *arg) {
+    const char *uri = evhttp_request_get_uri(req);
+    struct evhttp_uri *decoded = evhttp_uri_parse(uri);
+    const char *path;
+
+    if(!decoded) {
+        evhttp_send_error(req, HTTP_BADREQUEST, 0);
+        return;
+    }
+
+    path = evhttp_uri_get_path(decoded);
+    if (!path) path = "/";
+
+    fprintf(stdout, "%s\n", path);
+
+    if(strcmp(path, "/") == 0) {
+        route_index(req, arg);
+    }else if(strcmp(uri, "/favicon.ico") == 0) { 
+        route_favicon(req, arg);
+    }else {
+        route_image(req, arg);
+    }
+
+    if(decoded) {
+        evhttp_uri_free(decoded);
+    }
+
 }
 
 void* dispatch(void *arg) {
@@ -179,9 +253,14 @@ void* dispatch(void *arg) {
 
 int get_socket(int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if(sock < 0) {
+        return -1;
+    }
     int one = 1;
     int r = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(int));
-    
+    if(r<0) {
+        return -1;
+    }
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -189,10 +268,19 @@ int get_socket(int port) {
     addr.sin_port = htons(port);
 
     r = bind(sock, (struct sockaddr*)&addr, sizeof(addr));
+    if(r<0) {
+        return -1;
+    }
     r = listen(sock, 10240);
+    if(r<0) {
+        return -1;
+    }
 
-    int flags = fcntl(sock, F_GETFL, 0);
-    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+    int flags;
+    if((flags = fcntl(sock, F_GETFL, 0)) < 0
+        || fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) {
+        return -1;
+    }
     return sock;
 }
 
@@ -200,6 +288,9 @@ int main() {
     redis = redisConnect("127.0.0.1", 6379);
     MagickWandGenesis();
     int sock = get_socket(3000);
+    if(sock < 0) {
+        return -1;
+    }
     int nthreads = 6;
 
 
@@ -207,8 +298,8 @@ int main() {
     for (int i = 0; i < nthreads; i++) {
         struct event_base *base = event_base_new();
         struct evhttp *http = evhttp_new(base);
-        evhttp_set_cb(http, "/", route_index, NULL);
-        evhttp_set_gencb(http, route_generic, NULL);
+        //evhttp_set_cb(http, "/", route_index, NULL);
+        evhttp_set_gencb(http, router, NULL);
         evhttp_accept_socket(http, sock);
         pthread_create(&threads[i], NULL, dispatch, base);
     }

@@ -14,13 +14,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include <hiredis/hiredis.h>
-
 #include <wand/magick_wand.h>
 
 #include "util.h"
-
-redisContext *redis;
 
 void make_image(const char *str, struct evbuffer *evb, int side) {
     int rside = side/8;
@@ -31,15 +27,15 @@ void make_image(const char *str, struct evbuffer *evb, int side) {
     mw = NewMagickWand();
     PixelWand **pw = NewPixelWands(2);
     PixelSetColor(pw[0], "#f8f8f8");
-    
+
     unsigned char *digest = (unsigned char*)unhex(str);
     long longcol = crc(digest, 16);
     char *color = malloc(7*sizeof(char));
     color[0] = 0;
-    sprintf(color, "#%02x%02x%02x", 
-                    (unsigned int)(longcol & 0x000000ffUL),
-                    (unsigned int)(longcol & 0x0000ff00UL) >> 8,
-                    (unsigned int)(longcol & 0x00ff0000UL) >> 16);
+    sprintf(color, "#%02x%02x%02x",
+            (unsigned int)(longcol & 0x000000ffUL),
+            (unsigned int)(longcol & 0x0000ff00UL) >> 8,
+            (unsigned int)(longcol & 0x00ff0000UL) >> 16);
     PixelSetColor(pw[1], color);
     MagickNewImage(mw, rside*8, rside*8, pw[0]);
     DrawingWand *dw = NewDrawingWand();
@@ -52,21 +48,21 @@ void make_image(const char *str, struct evbuffer *evb, int side) {
             tot++;
         }
         for(int j = 0; j < 8; j++) {
-            if(data[j]) {
-                DrawRectangle(dw, rside*j,       rside*i, 
-                                  rside*j+rside, rside*i+rside);
+            if (data[j]) {
+                DrawRectangle(dw, rside*j, rside*i,
+                              rside*j+rside, rside*i+rside);
             }
         }
     }
     MagickDrawImage(mw, dw);
-    
+
     MagickSetImageFormat(mw, "PNG");
     resp = MagickGetImageBlob(mw, &len);
     for (int i = 0; i < len; i++) {
         evbuffer_add_printf(evb, "%c", resp[i]);
     }
-    
-    if(mw) {
+
+    if (mw) {
         DestroyMagickWand(mw);
         DestroyDrawingWand(dw);
         DestroyPixelWands(pw, 2);
@@ -83,11 +79,11 @@ void route_index(struct evhttp_request *req, void *arg) {
     evhttp_parse_query(uri, query);
     const char *parq = evhttp_find_header(query, "q");
     const char *pars = evhttp_find_header(query, "s");
-    if(parq) {
+    if (parq) {
         uri += 4;
         char *m = malloc(sizeof(char)*64);
         char *md = md5(uri, strlen(uri));
-        if(pars) {
+        if (pars) {
             sprintf(m, "/%s/%d", md, atoi(pars));
         } else {
             sprintf(m, "/%s", md);
@@ -111,7 +107,7 @@ void route_index(struct evhttp_request *req, void *arg) {
         }
         evbuffer_add_file(evb, fd, 0, st.st_size);
 
-        evhttp_add_header(evhttp_request_get_output_headers(req), 
+        evhttp_add_header(evhttp_request_get_output_headers(req),
                           "Content-Type", "text/html");
         evhttp_send_reply(req, 200, "OK", evb);
     }
@@ -119,7 +115,7 @@ void route_index(struct evhttp_request *req, void *arg) {
 error:
     evhttp_send_error(req, 400, "Terrible request. Please try again.");
 done:
-    if(evb) {
+    if (evb) {
         evbuffer_free(evb);
     }
 }
@@ -147,7 +143,7 @@ error:
                       "Content-Type", "text/plain");
     evhttp_send_error(req, 400, "Terrible request. Please try again.");
 done:
-    if(evb) {
+    if (evb) {
         evbuffer_free(evb);
     }
 }
@@ -165,20 +161,20 @@ void route_image(struct evhttp_request *req, void *arg) {
     int ind = 0;
     res = strtok((char *)uri, "/");
     while (res != NULL) {
-        if(ind == 0) {
-            if(strlen(res) == 32) {
+        if (ind == 0) {
+            if (strlen(res) == 32) {
                 hash = res;
             } else {
                 goto error;
             }
         }
-        if(ind == 1) {
+        if (ind == 1) {
             side = atoi(res);
-            if(side == 0) {
+            if (side == 0) {
                 side = 128;
-            } else if(side < 8) {
+            } else if (side < 8) {
                 side = 8;
-            } else if(side > 512) {
+            } else if (side > 512) {
                 side = 512;
             }
         }
@@ -186,20 +182,14 @@ void route_image(struct evhttp_request *req, void *arg) {
         ind++;
     }
 
-    if(strlen(uri) < 32) {
+    if (strlen(uri) < 32) {
         goto error;
     }
-    if(strlen(uri) > 32) {
-        if(strstr(uri, "/")) {
-            
+    if (strlen(uri) > 32) {
+        if (strstr(uri, "/")) {
+
         }
     }
-
-    //reply = redisCommand(redis, "GET %s", uri);
-    //if(reply->str) {
-    //    evbuffer_add_printf(evb, "%s: %s", uri, reply->str);
-    //}else{
-    //}
 
     evb = evbuffer_new();
     make_image(hash, evb, side);
@@ -212,7 +202,7 @@ error:
                       "Content-Type", "text/plain");
     evhttp_send_error(req, 400, "Terrible request. Please try again.");
 done:
-    if(evb) {
+    if (evb) {
         evbuffer_free(evb);
     }
 }
@@ -222,7 +212,7 @@ void router(struct evhttp_request *req, void *arg) {
     struct evhttp_uri *decoded = evhttp_uri_parse(uri);
     const char *path;
 
-    if(!decoded) {
+    if (!decoded) {
         evhttp_send_error(req, HTTP_BADREQUEST, 0);
         return;
     }
@@ -232,15 +222,15 @@ void router(struct evhttp_request *req, void *arg) {
         path = "/";
     }
 
-    if(strcmp(path, "/") == 0) {
+    if (strcmp(path, "/") == 0) {
         route_index(req, arg);
-    }else if(strcmp(uri, "/favicon.ico") == 0) { 
+    } else if (strcmp(uri, "/favicon.ico") == 0) {
         route_favicon(req, arg);
-    }else {
+    } else {
         route_image(req, arg);
     }
 
-    if(decoded) {
+    if (decoded) {
         evhttp_uri_free(decoded);
     }
 
@@ -253,12 +243,12 @@ void* dispatch(void *arg) {
 
 int get_socket(int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock < 0) {
+    if (sock < 0) {
         return -1;
     }
     int one = 1;
     int r = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(int));
-    if(r<0) {
+    if (r<0) {
         return -1;
     }
     struct sockaddr_in addr;
@@ -268,27 +258,26 @@ int get_socket(int port) {
     addr.sin_port = htons(port);
 
     r = bind(sock, (struct sockaddr*)&addr, sizeof(addr));
-    if(r<0) {
+    if (r<0) {
         return -1;
     }
     r = listen(sock, 10240);
-    if(r<0) {
+    if (r<0) {
         return -1;
     }
 
     int flags;
-    if((flags = fcntl(sock, F_GETFL, 0)) < 0
-        || fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) {
+    if ((flags = fcntl(sock, F_GETFL, 0)) < 0
+            || fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) {
         return -1;
     }
     return sock;
 }
 
 int main() {
-    redis = redisConnect("127.0.0.1", 6379);
     MagickWandGenesis();
     int sock = get_socket(3000);
-    if(sock < 0) {
+    if (sock < 0) {
         return -1;
     }
     int nthreads = 12;
@@ -298,7 +287,6 @@ int main() {
     for (int i = 0; i < nthreads; i++) {
         struct event_base *base = event_base_new();
         struct evhttp *http = evhttp_new(base);
-        //evhttp_set_cb(http, "/", route_index, NULL);
         evhttp_set_gencb(http, router, NULL);
         evhttp_accept_socket(http, sock);
         pthread_create(&threads[i], NULL, dispatch, base);
@@ -307,6 +295,5 @@ int main() {
         pthread_join(threads[i], NULL);
     }
     MagickWandTerminus();
-    redisFree(redis);
     return 0;
 }

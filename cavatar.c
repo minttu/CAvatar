@@ -228,9 +228,9 @@ void router(struct evhttp_request *req, void *arg) {
     }
 
     path = evhttp_uri_get_path(decoded);
-    if (!path) path = "/";
-
-    fprintf(stdout, "%s\n", path);
+    if (!path) {
+        path = "/";
+    }
 
     if(strcmp(path, "/") == 0) {
         route_index(req, arg);
@@ -291,7 +291,7 @@ int main() {
     if(sock < 0) {
         return -1;
     }
-    int nthreads = 6;
+    int nthreads = 12;
 
 
     pthread_t threads[nthreads];

@@ -1,3 +1,6 @@
 cavatar
 *.o
 *.orig
+makefile
+build/*
+!build/.gitkeep

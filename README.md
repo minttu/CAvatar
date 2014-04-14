@@ -6,10 +6,24 @@ A avatar thing in C.
 Requirements
 ============
 
+* CMake
 * [libevent2](http://libevent.org/)
 * [libevhtp](https://github.com/ellzey/libevhtp)
 * [imagemagic 6](http://www.imagemagick.org/)
 * [(future) hiredis](https://github.com/redis/hiredis)
+
+Building
+========
+
+	cd build
+	cmake ..
+	make
+
+Running
+=======
+
+	cd build
+	./cavatar
 
 Workings
 ========

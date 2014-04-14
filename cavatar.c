@@ -174,7 +174,9 @@ error:
 }
 
 void route_generic(evhtp_request_t *req, void *arg) {
-    evbuffer_add_printf(req->buffer_out, "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><title>404</title></head><body><p>404 not found</p></body></html>");
+    evbuffer_add_printf(req->buffer_out, "<!DOCTYPE HTML><html><head>"
+        "<meta charset=\"utf-8\"><title>404</title></head>"
+        "<body><p>404 not found</p></body></html>");
     evhtp_headers_add_header(req->headers_out,
         evhtp_header_new("Content-Type", "text/html", 0, 0));
     evhtp_send_reply(req, 404);

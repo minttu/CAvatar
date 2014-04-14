@@ -1,5 +1,5 @@
 TARGET = cavatar
-LIBS = -lpthread -levent -lssl -lcrypto `pkg-config --libs MagickWand` 
+LIBS = -lpthread -levent_openssl -levent -levhtp -lssl -lcrypto `pkg-config --libs MagickWand` 
 CC = clang
 CFLAGS = -Wall -O2 -g `pkg-config --cflags-only-I MagickWand` -DMAGICKCORE_HDRI_ENABLE=1 -DMAGICKCORE_QUANTUM_DEPTH=16
 

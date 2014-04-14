@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "util.h"
 
@@ -50,11 +51,20 @@ char hex_to_char(unsigned char c) {
     return -1;
 }
 
-char *unhex(const char* hex) {
+char *unhex(const char *hex) {
     char *buffer = malloc(17*sizeof(char));
     buffer[16] = 0;
     for(int i = 0; i < 16; i++) {
         buffer[i] = hex_to_char(hex[i*2]) | (hex_to_char(hex[i*2+1])<<4);
     }
     return buffer;
+}
+
+char *makelower(const char *str, size_t t) {
+    char *out = malloc(sizeof(char) * (t + 1));
+    for (int i = 0; i < t; i++) {
+        out[i] = tolower(str[i]);
+    }
+    out[t] = 0;
+    return out;
 }

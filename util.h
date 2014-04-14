@@ -4,5 +4,6 @@
 long crc(unsigned char *octets, size_t len);
 char *md5(const char *str, size_t len);
 char *unhex(const char *hex);
+char *makelower(const char *str, size_t t);
 
 #endif

@@ -9,9 +9,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-
 #include <wand/magick_wand.h>
 
+#include "config.h"
 #include "util.h"
 
 void make_image(const char *str, struct evbuffer *evb, int side) {
@@ -40,7 +40,7 @@ void make_image(const char *str, struct evbuffer *evb, int side) {
     for(int i = 0; i < 8; i++) {
         int data[8];
         for(int j = 0; j < 4; j++) {
-            data[j] = data[7-j] = (str[tot]) >> 6;
+            data[j] = data[7-j] = str[tot]&1;
             tot++;
         }
         for(int j = 0; j < 8; j++) {
@@ -75,7 +75,8 @@ void route_index(evhtp_request_t *req, void *arg) {
     const char *pars = evhtp_kv_find(query, "s");
     if (parq) {
         char *m = malloc(sizeof(char)*64);
-        char *md = md5(parq, strlen(parq));
+        char *md = md5((const char *)makelower(parq, strlen(parq)),
+                       strlen(parq));
         if (pars) {
             sprintf(m, "/%s/%d", md, atoi(pars));
         } else {
@@ -161,10 +162,6 @@ void route_image(evhtp_request_t *req, void *arg) {
         ind++;
     }
 
-    /*if (strlen(res) < 32) {
-        goto error;
-    }*/
-
     make_image(hash, req->buffer_out, side);
     evhtp_headers_add_header(req->headers_out,
         evhtp_header_new("Content-Type", "image/png", 0, 0));
@@ -176,18 +173,40 @@ error:
     evhtp_send_reply(req, 400);
 }
 
+void route_generic(evhtp_request_t *req, void *arg) {
+    evbuffer_add_printf(req->buffer_out, "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><title>404</title></head><body><p>404 not found</p></body></html>");
+    evhtp_headers_add_header(req->headers_out,
+        evhtp_header_new("Content-Type", "text/html", 0, 0));
+    evhtp_send_reply(req, 404);
+}
+
+static evhtp_res print_path(evhtp_request_t *req, evhtp_path_t *path, void *arg) {
+    puts(path->full);
+    return EVHTP_RES_OK;
+}
+
+static evhtp_res handlers(evhtp_connection_t *conn, void *arg) {
+    evhtp_set_hook(&conn->hooks, evhtp_hook_on_path, print_path, NULL);
+    return EVHTP_RES_OK;
+}
+
 int main() {
     MagickWandGenesis();
 
     evbase_t *evbase = event_base_new();
     evhtp_t *htp = evhtp_new(evbase, NULL);
 
-    evhtp_set_regex_cb(htp, "/(.*)/", route_image, NULL);
     evhtp_set_cb(htp, "/", route_index, NULL);
     evhtp_set_cb(htp, "/favicon.ico", route_favicon, NULL);
+    evhtp_set_regex_cb(htp, "/(.{32})", route_image, NULL);
+    evhtp_set_regex_cb(htp, "/(.{32})/", route_image, NULL);
+    evhtp_set_regex_cb(htp, "/(.{32})/([0-9]{1,3})", route_image, NULL);
+    evhtp_set_gencb(htp, route_generic, NULL);
 
-    evhtp_use_threads(htp, NULL, 6, NULL);
-    evhtp_bind_socket(htp, "0.0.0.0", 3000, 1024);
+    evhtp_set_post_accept_cb(htp, handlers, NULL);
+
+    evhtp_use_threads(htp, NULL, THREADS, NULL);
+    evhtp_bind_socket(htp, "0.0.0.0", PORT, 1024);
     event_base_loop(evbase, 0);
     evhtp_unbind_socket(htp);
     evhtp_free(htp);

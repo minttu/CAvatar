@@ -56,7 +56,7 @@
                 t.style.backgroundImage = "";
                 t.innerHTML = "CAvatar";
             } else {
-                t.style.backgroundImage = 'url("/?q='+str+"&s=512)";
+                t.style.backgroundImage = 'url("/?q='+encodeURIComponent(str)+"&s=512)";
                 t.innerHTML = "";
             }
         }

@@ -9,7 +9,9 @@
 #define CRC24_INIT 0xb704ceL
 #define CRC24_POLY 0x1864cfbL
 
-/* crc24 as defined in http://www.ietf.org/rfc/rfc2440.txt 6.1 */
+/**
+ * crc24 as defined in http://www.ietf.org/rfc/rfc2440.txt 6.1
+ */
 long crc(unsigned char *octets, size_t len) {
     long crc = CRC24_INIT;
     int i;
@@ -25,6 +27,9 @@ long crc(unsigned char *octets, size_t len) {
     return crc & 0xffffffL;
 }
 
+/**
+ * Returns a md5 hash of str.
+ */
 char *md5(const char *str, size_t len) {
     MD5_CTX ctx;
     unsigned char digest[16];
@@ -40,6 +45,9 @@ char *md5(const char *str, size_t len) {
     return out;
 }
 
+/**
+ * Returns a character from hex.
+ */
 char hex_to_char(unsigned char c) {
     if (c >= '0' && c <= '9') {
         return c - '0';
@@ -51,6 +59,9 @@ char hex_to_char(unsigned char c) {
     return -1;
 }
 
+/**
+ * From base16 to base 32
+ */
 char *unhex(const char *hex) {
     char *buffer = malloc(17*sizeof(char));
     buffer[16] = 0;
@@ -60,6 +71,9 @@ char *unhex(const char *hex) {
     return buffer;
 }
 
+/**
+ * Returns str made lowercase
+ */
 char *makelower(const char *str, size_t t) {
     char *out = malloc(sizeof(char) * (t + 1));
     for (int i = 0; i < t; i++) {

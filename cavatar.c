@@ -11,10 +11,41 @@
 
 #include <wand/magick_wand.h>
 
+#include "helper_routes.h"
 #include "config.h"
 #include "util.h"
 
-void make_image(const char *str, struct evbuffer *evb, int side) {
+/**
+ * Gets a color from a hex.
+ */
+void make_color(const char *hex, char *color) {
+    unsigned char *digest = (unsigned char*)unhex(hex);
+    long longcol = crc(digest, 16);
+    color[0] = 0;
+    sprintf(color, "#%02x%02x%02x",
+            (unsigned int)(longcol & 0x000000ffUL),
+            (unsigned int)(longcol & 0x0000ff00UL) >> 8,
+            (unsigned int)(longcol & 0x00ff0000UL) >> 16);
+    free(digest);
+}
+
+/**
+ * Gets a pattern from a hex.
+ */
+void make_pattern(const char *hex, int data[8][8]) {
+    int tot = 0;
+    for(int i = 0; i < 8; i++) {
+        for(int j = 0; j < 4; j++) {
+            data[i][j] = data[i][7-j] = hex[tot]&1;
+            tot++;
+        }
+    }
+}
+
+/**
+ * Makes a image from hex with the size of side and dumps it onto evb.
+ */
+void make_image(const char *hex, struct evbuffer *evb, int side) {
     int rside = side/8;
     unsigned char *resp = NULL;
     size_t len;
@@ -24,27 +55,20 @@ void make_image(const char *str, struct evbuffer *evb, int side) {
     PixelWand **pw = NewPixelWands(2);
     PixelSetColor(pw[0], "#f8f8f8");
 
-    unsigned char *digest = (unsigned char*)unhex(str);
-    long longcol = crc(digest, 16);
     char *color = malloc(7*sizeof(char));
-    color[0] = 0;
-    sprintf(color, "#%02x%02x%02x",
-            (unsigned int)(longcol & 0x000000ffUL),
-            (unsigned int)(longcol & 0x0000ff00UL) >> 8,
-            (unsigned int)(longcol & 0x00ff0000UL) >> 16);
+    make_color(hex, color);
+   
     PixelSetColor(pw[1], color);
     MagickNewImage(mw, rside*8, rside*8, pw[0]);
     DrawingWand *dw = NewDrawingWand();
     DrawSetFillColor(dw, pw[1]);
-    int tot = 0;
+    
+    int data[8][8];
+    make_pattern(hex, data);
+
     for(int i = 0; i < 8; i++) {
-        int data[8];
-        for(int j = 0; j < 4; j++) {
-            data[j] = data[7-j] = str[tot]&1;
-            tot++;
-        }
         for(int j = 0; j < 8; j++) {
-            if (data[j]) {
+            if (data[i][j]) {
                 DrawRectangle(dw, rside*j, rside*i,
                               rside*j+rside, rside*i+rside);
             }
@@ -64,10 +88,12 @@ void make_image(const char *str, struct evbuffer *evb, int side) {
         DestroyPixelWands(pw, 2);
     }
     free(color);
-    free(digest);
     free(resp);
 }
 
+/**
+ * Index route, serves a static file and handles a redirect.
+ */
 void route_index(evhtp_request_t *req, void *arg) {
     evhtp_uri_t *uri = req->uri;
     evhtp_query_t *query = uri->query;
@@ -75,8 +101,9 @@ void route_index(evhtp_request_t *req, void *arg) {
     const char *pars = evhtp_kv_find(query, "s");
     if (parq) {
         char *m = malloc(sizeof(char)*64);
-        char *md = md5((const char *)makelower(parq, strlen(parq)),
-                       strlen(parq));
+        char *tmp = makelower(parq, strlen(parq));
+        char *md = md5((const char *)tmp, strlen(parq));
+        free(tmp);
         if (pars) {
             sprintf(m, "/%s/%d", md, atoi(pars));
         } else {
@@ -88,47 +115,72 @@ void route_index(evhtp_request_t *req, void *arg) {
         free(m);
         evhtp_send_reply(req, 301);
     } else {
-        int fd = -1;
-        struct stat st;
-        if (stat("index.html", &st)<0) {
-            goto error;
-        }
-        if ((fd = open("index.html", O_RDONLY)) < 0) {
-            goto error;
-        }
-        evbuffer_add_file(req->buffer_out, fd, 0, st.st_size);
-
-        evhtp_headers_add_header(req->headers_out,
-            evhtp_header_new("Content-Type", "text/html", 0, 0));
-        evhtp_send_reply(req, 200);
+        serve_static(req, "../index.html", "text/html");
     }
-    return;
-error:
-    evhtp_send_reply(req, 400);
 }
 
+/**
+ * Serves the favicon file.
+ */
 void route_favicon(evhtp_request_t *req, void *arg) {
-    int fd = -1;
-    struct stat st;
-    if (stat("favicon.ico", &st)<0) {
-        goto error;
-    }
-    if ((fd = open("favicon.ico", O_RDONLY)) < 0) {
-        goto error;
-    }
-    evhtp_headers_add_header(req->headers_out,
-        evhtp_header_new("Content-Type", "image/x-icon", 0, 0));
     evhtp_headers_add_header(req->headers_out,
         evhtp_header_new("Cache-Control", "max-age=90000, public", 0, 0));
-    evbuffer_add_file(req->buffer_out, fd, 0, st.st_size);
-    evhtp_send_reply(req, 200);
-    return;
-error:
-    evhtp_headers_add_header(req->headers_out,
-        evhtp_header_new("Content-Type", "text/plain", 0, 0));
-    evhtp_send_reply(req, 400);
+    serve_static(req, "../favicon.ico", "image/x-icon");
 }
 
+/**
+ * Serves meta information in JSON about a hash.
+ */
+void route_meta(evhtp_request_t *req, void *arg) {
+    evhtp_uri_t *uri = req->uri;
+    char *res = uri->path->full;
+    char *hash = "";
+    res = strtok((char *)res, "/");
+    while (res != NULL) {
+        if (strlen(res) == 32) {
+            hash = res;
+            break;
+        }
+        res = strtok(NULL, "/");
+    }
+    
+    char *color = malloc(sizeof(char)*7);
+    make_color(hash, color);
+
+    int i[8][8];
+    make_pattern(hash, i);
+
+    char *pattern = malloc(sizeof(char)*146);
+    sprintf(pattern, "[[%d,%d,%d,%d,%d,%d,%d,%d],"
+                      "[%d,%d,%d,%d,%d,%d,%d,%d],"
+                      "[%d,%d,%d,%d,%d,%d,%d,%d],"
+                      "[%d,%d,%d,%d,%d,%d,%d,%d],"
+                      "[%d,%d,%d,%d,%d,%d,%d,%d],"
+                      "[%d,%d,%d,%d,%d,%d,%d,%d],"
+                      "[%d,%d,%d,%d,%d,%d,%d,%d],"
+                      "[%d,%d,%d,%d,%d,%d,%d,%d]]", 
+        i[0][0],i[0][1],i[0][2],i[0][3],i[0][4],i[0][5],i[0][6],i[0][7],
+        i[1][0],i[1][1],i[1][2],i[1][3],i[1][4],i[1][5],i[1][6],i[1][7],
+        i[2][0],i[2][1],i[2][2],i[2][3],i[2][4],i[2][5],i[2][6],i[2][7],
+        i[3][0],i[3][1],i[3][2],i[3][3],i[3][4],i[3][5],i[3][6],i[3][7],
+        i[4][0],i[4][1],i[4][2],i[4][3],i[4][4],i[4][5],i[4][6],i[4][7],
+        i[5][0],i[5][1],i[5][2],i[5][3],i[5][4],i[5][5],i[5][6],i[5][7],
+        i[6][0],i[6][1],i[6][2],i[6][3],i[6][4],i[6][5],i[6][6],i[6][7],
+        i[7][0],i[7][1],i[7][2],i[7][3],i[7][4],i[7][5],i[7][6],i[7][7]
+    );
+    pattern[145] = 0;
+
+    evbuffer_add_printf(req->buffer_out, "{hash:\"%s\",modified:false,color:\"%s\",pattern:%s}", hash, color, pattern);
+    free(color);
+    free(pattern);
+    evhtp_headers_add_header(req->headers_out,
+        evhtp_header_new("Content-Type", "application/json", 0, 0));
+    evhtp_send_reply(req, 200);
+}
+
+/**
+ * Serves a PNG file of the hash.
+ */
 void route_image(evhtp_request_t *req, void *arg) {
     // redisReply *reply;
 
@@ -145,7 +197,8 @@ void route_image(evhtp_request_t *req, void *arg) {
             if (strlen(res) == 32) {
                 hash = res;
             } else {
-                goto error;
+                route_400(req);
+                return;
             }
         }
         if (ind == 1) {
@@ -166,27 +219,26 @@ void route_image(evhtp_request_t *req, void *arg) {
     evhtp_headers_add_header(req->headers_out,
         evhtp_header_new("Content-Type", "image/png", 0, 0));
     evhtp_send_reply(req, 200);
-    return;
-error:
-    evhtp_headers_add_header(req->headers_out,
-        evhtp_header_new("Content-Type", "text/plain", 0, 0));
-    evhtp_send_reply(req, 400);
 }
 
+/**
+ * A catch all route for serving some 404.
+ */
 void route_generic(evhtp_request_t *req, void *arg) {
-    evbuffer_add_printf(req->buffer_out, "<!DOCTYPE HTML><html><head>"
-        "<meta charset=\"utf-8\"><title>404</title></head>"
-        "<body><p>404 not found</p></body></html>");
-    evhtp_headers_add_header(req->headers_out,
-        evhtp_header_new("Content-Type", "text/html", 0, 0));
-    evhtp_send_reply(req, 404);
+    route_404(req);
 }
 
+/**
+ * Prints the route every time a request is made.
+ */
 static evhtp_res print_path(evhtp_request_t *req, evhtp_path_t *path, void *arg) {
     puts(path->full);
     return EVHTP_RES_OK;
 }
 
+/**
+ * Registers a few handlers.
+ */
 static evhtp_res handlers(evhtp_connection_t *conn, void *arg) {
     evhtp_set_hook(&conn->hooks, evhtp_hook_on_path, print_path, NULL);
     return EVHTP_RES_OK;
@@ -198,13 +250,21 @@ int main() {
     evbase_t *evbase = event_base_new();
     evhtp_t *htp = evhtp_new(evbase, NULL);
 
+    // A few static routes
     evhtp_set_cb(htp, "/", route_index, NULL);
     evhtp_set_cb(htp, "/favicon.ico", route_favicon, NULL);
-    evhtp_set_regex_cb(htp, "/(.{32})", route_image, NULL);
-    evhtp_set_regex_cb(htp, "/(.{32})/", route_image, NULL);
-    evhtp_set_regex_cb(htp, "/(.{32})/([0-9]{1,3})", route_image, NULL);
+
+    // Metas
+    evhtp_set_regex_cb(htp, "[\\/](meta)[\\/]([0-9a-fA-F]{32})", route_meta, NULL);
+
+    // Images
+    evhtp_set_regex_cb(htp, "[\\/]([0-9a-fA-F]{32})", route_image, NULL);
+
+    // 404 routes
+    evhtp_set_regex_cb(htp, "[\\/](.{1,})", route_generic, NULL);
     evhtp_set_gencb(htp, route_generic, NULL);
 
+    // For printing out paths
     evhtp_set_post_accept_cb(htp, handlers, NULL);
 
     evhtp_use_threads(htp, NULL, THREADS, NULL);

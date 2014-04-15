@@ -4,3 +4,4 @@ cavatar
 makefile
 build/*
 !build/.gitkeep
+docs/*

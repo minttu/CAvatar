@@ -22,4 +22,5 @@ target_link_libraries(cavatar pthread)
 target_link_libraries(cavatar event_openssl)
 
 add_library(util util.c)
-target_link_libraries(cavatar ${CORELIBS} util)
+add_library(helper_routes helper_routes.c)
+target_link_libraries(cavatar ${CORELIBS} util helper_routes)

@@ -26,16 +26,50 @@
         padding: 8px;
         border-radius: 2px;
     }
-    input[type=text] {
+    input, button {
+        font-size: 1.25em;
+        border-radius: 2px;
+        border: thin solid #333;
+        padding: 4px;
+        box-sizing: border-box;
+        -webkit-box-sizing:border-box;
+        -moz-box-sizing: border-box;
+        background-color: #f8f8f8;
+    }
+    input:disabled {
+        background-color: #ccc;
+    }
+    button:disabled {
+        background-color: #ccc;
+    }
+    #form input[type=text] {
+        width: calc(100% - 128px);
+    }
+    #form button {
+        width: 120px;
+        cursor: pointer;
+    }
+    #form {
+        position: relative;
         width: 100%;
         box-sizing: border-box;
         -webkit-box-sizing:border-box;
         -moz-box-sizing: border-box;
-        font-size: 1.25em;
-        border-radius: 2px;
-        border: thin solid #333;
-        padding: 0.125em;
-        margin-top: 8px;
+    }
+    #claim input[type=text] {
+        width: 192px;
+    }
+    #claim button {
+        width: 100px;
+        cursor: pointer;
+    }
+    #claim {
+        position: relative;
+        width: 100%;
+        box-sizing: border-box;
+        -webkit-box-sizing:border-box;
+        -moz-box-sizing: border-box;
+        display: none;
     }
     #t {
         width: 512px;
@@ -52,19 +86,44 @@
     <script type="text/javascript">
         function doit(str) {
             var t = document.getElementById("t");
+            var b = document.getElementById("claimButton");
             if(str.length == 0) {
+                b.disabled = true;
                 t.style.backgroundImage = "";
                 t.innerHTML = "CAvatar";
             } else {
+                b.disabled = false;
                 t.style.backgroundImage = 'url(/?q='+encodeURIComponent(str)+"&s=512)";
                 t.innerHTML = "";
+            }
+        }
+        function claim() {
+            var q = document.getElementById("q");
+            var b = document.getElementById("claimButton");
+            var c = document.getElementById("claim");
+            var t = q.value;
+            if(t.length == 0) {
+                return;
+            }
+            if(q.disabled) {
+                q.disabled = false;
+                b.innerHTML = "Edit";
+                c.style.display = "none";
+            }else{
+                q.disabled = true;
+                b.innerHTML = "Done";
+                c.style.display = "block";
             }
         }
         function load() {
             var q = document.getElementById("q");
             q.onkeyup = function() {
                 doit(q.value);
-            }
+            };
+            document.getElementById("claimButton").onclick = function() {
+                claim();
+            };
+            doit(q.value);
         }
     </script>
 </head>
@@ -72,7 +131,16 @@
     <main>
         <article>
             <div id="t">CAvatar</div>
-            <input type="text" id="q" name="q" placeholder="Type something">
+            <div id="claim">
+                <input type="text">
+                <button>Pen</button>
+                <button>Eraser</button>
+                <button>Grid</button>
+            </div>
+            <div id="form">
+                <input type="text" id="q" name="q" placeholder="Type something">
+                <button id="claimButton">Edit</button>
+            </div>
         </article>
     </main>
 </body>

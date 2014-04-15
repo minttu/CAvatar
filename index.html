@@ -56,92 +56,83 @@
         -webkit-box-sizing:border-box;
         -moz-box-sizing: border-box;
     }
-    #claim input[type=text] {
-        width: 192px;
-    }
-    #claim button {
-        width: 100px;
-        cursor: pointer;
-    }
-    #claim {
-        position: relative;
-        width: 100%;
-        box-sizing: border-box;
-        -webkit-box-sizing:border-box;
-        -moz-box-sizing: border-box;
-        display: none;
-    }
-    #t {
+    #target {
         width: 512px;
         height: 512px;
         background-color: #f8f8f8;
-        background-size: cover;
-        text-align: center;
-        font-size: 96px;
-        font-weight: 400;
-        vertical-align: middle;
-        display: table-cell;
+    }
+    #meta {
+        font-family: monospace;
+        font-size: 20px;
+        height: 40px;
+    }
+    #meta div {
+        padding: 0;
+        margin: 0;
     }
     </style>
-    <script type="text/javascript">
-        function doit(str) {
-            var t = document.getElementById("t");
-            var b = document.getElementById("claimButton");
-            if(str.length == 0) {
-                b.disabled = true;
-                t.style.backgroundImage = "";
-                t.innerHTML = "CAvatar";
-            } else {
-                b.disabled = false;
-                t.style.backgroundImage = 'url(/?q='+encodeURIComponent(str)+"&s=512)";
-                t.innerHTML = "";
-            }
-        }
-        function claim() {
-            var q = document.getElementById("q");
-            var b = document.getElementById("claimButton");
-            var c = document.getElementById("claim");
-            var t = q.value;
-            if(t.length == 0) {
-                return;
-            }
-            if(q.disabled) {
-                q.disabled = false;
-                b.innerHTML = "Edit";
-                c.style.display = "none";
-            }else{
-                q.disabled = true;
-                b.innerHTML = "Done";
-                c.style.display = "block";
-            }
-        }
-        function load() {
-            var q = document.getElementById("q");
-            q.onkeyup = function() {
-                doit(q.value);
-            };
-            document.getElementById("claimButton").onclick = function() {
-                claim();
-            };
-            doit(q.value);
-        }
-    </script>
 </head>
-<body onload="load();">
+<body>
+    <a href="https://github.com/JuhaniImberg/cavatar"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://camo.githubusercontent.com/c6286ade715e9bea433b4705870de482a654f78a/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f6c6566745f77686974655f6666666666662e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_left_white_ffffff.png"></a>
     <main>
         <article>
-            <div id="t">CAvatar</div>
-            <div id="claim">
-                <input type="text">
-                <button>Pen</button>
-                <button>Eraser</button>
-                <button>Grid</button>
-            </div>
+            <canvas id="target"></canvas>
+            <div id="meta"><div id="hash"></div><div id="color"></div></div>
             <div id="form">
                 <input type="text" id="q" name="q" placeholder="Type something">
                 <button id="claimButton">Edit</button>
             </div>
         </article>
     </main>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.3/zepto.min.js"></script>
+    <script type="text/javascript">
+        function clear_render() {
+            var ctx = $("#target")[0].getContext("2d");
+            ctx.clearRect(0,0,512,512);
+        }
+        function render(data) {
+            clear_render();
+            var ctx = $("#target")[0].getContext("2d");
+            ctx.canvas.width = 512;
+            ctx.canvas.height = 512;
+            ctx.fillStyle = data.color;
+            var width = data.pattern[0].length;
+            var height = data.pattern.length;
+            var side = 512/width;
+            for(var i = 0; i < height; i++) {
+                for(var j = 0; j < width; j++) {
+                    if(data.pattern[i][j] === 1) {
+                        ctx.fillRect(j*side, i*side, side, side);
+                    }
+                }
+            }
+        }
+        function meta(data) {
+            $("#hash").html("Hash: " + data.hash);
+            $("#color").html("Color: " + data.color);
+        }
+        function clear_meta() {
+            $("#hash").html("");
+            $("#color").html("");
+        }
+        function update() {
+            if($("#q").val().length == 0) {
+                clear_render();
+                clear_meta();
+                return;
+            }
+            $.getJSON('/?m=m&q='+encodeURIComponent($("#q").val()),
+                function(data){
+                    meta(data);
+                    render(data);
+            });
+        }
+        $(function($){
+            update();
+            $("#q").on("keyup", function() {
+                update();
+            });
+        });
+    </script>
 </body>
 </html>

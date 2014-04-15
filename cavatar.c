@@ -99,12 +99,15 @@ void route_index(evhtp_request_t *req, void *arg) {
     evhtp_query_t *query = uri->query;
     const char *parq = evhtp_kv_find(query, "q");
     const char *pars = evhtp_kv_find(query, "s");
+    const char *parm = evhtp_kv_find(query, "m");
     if (parq) {
         char *m = malloc(sizeof(char)*64);
         char *tmp = makelower(parq, strlen(parq));
         char *md = md5((const char *)tmp, strlen(parq));
         free(tmp);
-        if (pars) {
+        if (parm) {
+            sprintf(m, "/meta/%s", md);
+        } else if (pars) {
             sprintf(m, "/%s/%d", md, atoi(pars));
         } else {
             sprintf(m, "/%s", md);
@@ -170,7 +173,7 @@ void route_meta(evhtp_request_t *req, void *arg) {
     );
     pattern[145] = 0;
 
-    evbuffer_add_printf(req->buffer_out, "{hash:\"%s\",modified:false,color:\"%s\",pattern:%s}", hash, color, pattern);
+    evbuffer_add_printf(req->buffer_out, "{\"hash\":\"%s\",\"modified\":false,\"color\":\"%s\",\"pattern\":%s}", hash, color, pattern);
     free(color);
     free(pattern);
     evhtp_headers_add_header(req->headers_out,

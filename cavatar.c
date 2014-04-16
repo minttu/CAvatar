@@ -231,27 +231,10 @@ void route_generic(evhtp_request_t *req, void *arg) {
     route_404(req);
 }
 
-/**
- * Prints the route every time a request is made.
- */
-static evhtp_res print_path(evhtp_request_t *req, evhtp_path_t *path, void *arg) {
-    puts(path->full);
-    return EVHTP_RES_OK;
-}
-
-/**
- * Registers a few handlers.
- */
-static evhtp_res handlers(evhtp_connection_t *conn, void *arg) {
-    evhtp_set_hook(&conn->hooks, evhtp_hook_on_path, print_path, NULL);
-    return EVHTP_RES_OK;
-}
-
 int main() {
-    MagickWandGenesis();
-
     evbase_t *evbase = event_base_new();
     evhtp_t *htp = evhtp_new(evbase, NULL);
+    MagickWandGenesis();
 
     // A few static routes
     evhtp_set_cb(htp, "/", route_index, NULL);
@@ -267,16 +250,20 @@ int main() {
     evhtp_set_regex_cb(htp, "[\\/](.{1,})", route_generic, NULL);
     evhtp_set_gencb(htp, route_generic, NULL);
 
-    // For printing out paths
-    evhtp_set_post_accept_cb(htp, handlers, NULL);
+    // libevhtp has a cool wrapper for pthreads
+    evhtp_use_threads(htp, NULL, threads, NULL);
 
-    evhtp_use_threads(htp, NULL, THREADS, NULL);
-    evhtp_bind_socket(htp, "0.0.0.0", PORT, 1024);
+    // aaaand bind a socket..
+    evhtp_bind_socket(htp, "0.0.0.0", port, 1024);
+
+    // and listen!
     event_base_loop(evbase, 0);
+
+    // free stuff after event loop
     evhtp_unbind_socket(htp);
     evhtp_free(htp);
     event_base_free(evbase);
-
     MagickWandTerminus();
+
     return 0;
 }

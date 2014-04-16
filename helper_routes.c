@@ -10,7 +10,6 @@
 #include <sys/types.h>
 
 #include "helper_routes.h"
-#include "config.h"
 #include "util.h"
 
 /**

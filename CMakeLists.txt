@@ -7,13 +7,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 find_package(LibEvent)
 find_package(OpenSSL)
-find_package(ImageMagick COMPONENTS Magick++ MagickWand)
 
-add_definitions(-std=c99 -O2 -Wall -DMAGICKCORE_HDRI_ENABLE=1 -DMAGICKCORE_QUANTUM_DEPTH=16)
+add_definitions(-D_GNU_SOURCE -std=c99 -O2 -Wall)
 
 add_executable(cavatar cavatar.c)
-include_directories(${ImageMagick_INCLUDE_DIRS})
-target_link_libraries(cavatar ${ImageMagick_LIBRARIES})
 target_link_libraries(cavatar ${LIBEVENT_LIB})
 target_link_libraries(cavatar crypto)
 target_link_libraries(cavatar ssl)
@@ -23,4 +20,7 @@ target_link_libraries(cavatar event_openssl)
 
 add_library(util util.c)
 add_library(helper_routes helper_routes.c)
-target_link_libraries(cavatar ${CORELIBS} util helper_routes)
+add_library(gen gen.c)
+target_link_libraries(gen png)
+target_link_libraries(gen evhtp)
+target_link_libraries(cavatar ${CORELIBS} util helper_routes gen)

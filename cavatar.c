@@ -9,43 +9,17 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <wand/magick_wand.h>
-
 #include "helper_routes.h"
 #include "config.h"
 #include "util.h"
+#include "gen.h"
 
-/**
- * Gets a color from a hex.
- */
-void make_color(const char *hex, char *color) {
-    unsigned char *digest = (unsigned char*)unhex(hex);
-    long longcol = crc(digest, 16);
-    color[0] = 0;
-    sprintf(color, "#%02x%02x%02x",
-            (unsigned int)(longcol & 0x000000ffUL),
-            (unsigned int)(longcol & 0x0000ff00UL) >> 8,
-            (unsigned int)(longcol & 0x00ff0000UL) >> 16);
-    free(digest);
-}
-
-/**
- * Gets a pattern from a hex.
- */
-void make_pattern(const char *hex, int data[8][8]) {
-    int tot = 0;
-    for(int i = 0; i < 8; i++) {
-        for(int j = 0; j < 4; j++) {
-            data[i][j] = data[i][7-j] = hex[tot]&1;
-            tot++;
-        }
-    }
-}
 
 /**
  * Makes a image from hex with the size of side and dumps it onto evb.
  */
-void make_image(const char *hex, struct evbuffer *evb, int side) {
+
+/*void make_image(const char *hex, struct evbuffer *evb, int side) {
     int rside = side/8;
     unsigned char *resp = NULL;
     size_t len;
@@ -89,7 +63,7 @@ void make_image(const char *hex, struct evbuffer *evb, int side) {
     }
     free(color);
     free(resp);
-}
+}*/
 
 /**
  * Index route, serves a static file and handles a redirect.
@@ -148,7 +122,7 @@ void route_meta(evhtp_request_t *req, void *arg) {
     }
     
     char *color = malloc(sizeof(char)*7);
-    make_color(hash, color);
+    make_color_hex(hash, color);
 
     int i[8][8];
     make_pattern(hash, i);
@@ -234,7 +208,7 @@ void route_generic(evhtp_request_t *req, void *arg) {
 int main() {
     evbase_t *evbase = event_base_new();
     evhtp_t *htp = evhtp_new(evbase, NULL);
-    MagickWandGenesis();
+    //MagickWandGenesis();
 
     // A few static routes
     evhtp_set_cb(htp, "/", route_index, NULL);
@@ -263,7 +237,7 @@ int main() {
     evhtp_unbind_socket(htp);
     evhtp_free(htp);
     event_base_free(evbase);
-    MagickWandTerminus();
+    //MagickWandTerminus();
 
     return 0;
 }

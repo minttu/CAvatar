@@ -84,7 +84,7 @@ void make_image(const char *hex, struct evbuffer *evb, int side) {
     int fd = -1;
     struct stat st;
     
-    sprintf(imgname, "%s/%s_%d.png", imgfolder, hex, side);
+    sprintf(imgname, "%s/%s_%d.png", imgfolder, hex, scale*8);
     
     if(cache == 1 && stat(imgname, &st) >= 0 && (fd = open(imgname, O_RDONLY)) >= 0) {
         evbuffer_add_file(evb, fd, 0, st.st_size);

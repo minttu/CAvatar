@@ -9,8 +9,6 @@ typedef struct {
     unsigned char b;
 } color;
 
-static const color bgcol = {248, 248, 248};
-
 void make_color(const char *hex, color *col);
 void make_color_hex(const char *hex, char *color);
 void make_pattern(const char *hex, int data[8][8]);

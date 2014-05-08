@@ -1,4 +1,5 @@
 cavatar
+img/
 *.o
 *.a
 *.orig

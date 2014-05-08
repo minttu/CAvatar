@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <evhtp.h>
 
+#include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -79,6 +80,19 @@ void make_image(const char *hex, struct evbuffer *evb, int side) {
     int scale = side/8;
     int data[8][8];
     int m = 0;
+    char *imgname = malloc(sizeof(char) * 64);
+    int fd = -1;
+    struct stat st;
+    
+    sprintf(imgname, "%s/%s_%d.png", imgfolder, hex, side);
+    
+    if(cache == 1 && stat(imgname, &st) >= 0 && (fd = open(imgname, O_RDONLY)) >= 0) {
+        evbuffer_add_file(evb, fd, 0, st.st_size);
+        fprintf(stdout, "Hit cache [ %s ]\n", imgname);
+        free(imgname);
+        return;
+    }
+    
     make_pattern(hex, data);
     color *col = malloc(sizeof(color));
     make_color(hex, col);
@@ -104,15 +118,19 @@ void make_image(const char *hex, struct evbuffer *evb, int side) {
             set_area(&(buffer[(m+((j*2)+1)*scale)*3]), data[i][(j*2)+1], col, scale);
         }
     }
-    char *imgname = malloc(sizeof(char) * 64);
-    sprintf(imgname, "%s/%s_%d.png", imgfolder, hex, side);
+    
     png_image_write_to_file(&image, imgname, 0, buffer, 0, NULL);
-    int fd = -1;
-    struct stat st;
+    
     stat(imgname, &st);
     fd = open(imgname, O_RDONLY);
+    
     evbuffer_add_file(evb, fd, 0, st.st_size);
-    remove(imgname);
+    if(cache == 0) {
+        remove(imgname);
+        fprintf(stdout, "Served [ %s ]\n", imgname);
+    } else {
+        fprintf(stdout, "Cached [ %s ]\n", imgname);
+    }
     free(imgname);
     free(buffer);
 }

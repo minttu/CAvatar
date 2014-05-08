@@ -14,57 +14,6 @@
 #include "util.h"
 #include "gen.h"
 
-
-/**
- * Makes a image from hex with the size of side and dumps it onto evb.
- */
-
-/*void make_image(const char *hex, struct evbuffer *evb, int side) {
-    int rside = side/8;
-    unsigned char *resp = NULL;
-    size_t len;
-    MagickWand *mw = NULL;
-
-    mw = NewMagickWand();
-    PixelWand **pw = NewPixelWands(2);
-    PixelSetColor(pw[0], "#f8f8f8");
-
-    char *color = malloc(7*sizeof(char));
-    make_color(hex, color);
-   
-    PixelSetColor(pw[1], color);
-    MagickNewImage(mw, rside*8, rside*8, pw[0]);
-    DrawingWand *dw = NewDrawingWand();
-    DrawSetFillColor(dw, pw[1]);
-    
-    int data[8][8];
-    make_pattern(hex, data);
-
-    for(int i = 0; i < 8; i++) {
-        for(int j = 0; j < 8; j++) {
-            if (data[i][j]) {
-                DrawRectangle(dw, rside*j, rside*i,
-                              rside*j+rside, rside*i+rside);
-            }
-        }
-    }
-    MagickDrawImage(mw, dw);
-
-    MagickSetImageFormat(mw, "PNG");
-    resp = MagickGetImageBlob(mw, &len);
-    for (int i = 0; i < len; i++) {
-        evbuffer_add_printf(evb, "%c", resp[i]);
-    }
-
-    if (mw) {
-        DestroyMagickWand(mw);
-        DestroyDrawingWand(dw);
-        DestroyPixelWands(pw, 2);
-    }
-    free(color);
-    free(resp);
-}*/
-
 /**
  * Index route, serves a static file and handles a redirect.
  */
@@ -173,6 +122,8 @@ void route_image(evhtp_request_t *req, void *arg) {
         if (ind == 0) {
             if (strlen(res) == 32) {
                 hash = res;
+            } else if(strcmp(res, "avatar") == 0) {
+                ind--;
             } else {
                 route_400(req);
                 return;
@@ -221,6 +172,7 @@ int main() {
     evhtp_set_regex_cb(htp, "[\\/](meta)[\\/]([0-9a-fA-F]{32})", route_meta, NULL);
 
     // Images
+    evhtp_set_regex_cb(htp, "[\\/](avatar)[\\/]([0-9a-fA-F]{32})", route_image, NULL);
     evhtp_set_regex_cb(htp, "[\\/]([0-9a-fA-F]{32})", route_image, NULL);
 
     // 404 routes
@@ -231,7 +183,11 @@ int main() {
     evhtp_use_threads(htp, NULL, threads, NULL);
 
     // aaaand bind a socket..
-    evhtp_bind_socket(htp, "0.0.0.0", port, 1024);
+    if(evhtp_bind_socket(htp, "0.0.0.0", port, 1024) < 0) {
+        fprintf(stderr, "Could not bind to socket %d: %s\n", port, strerror(errno));
+        exit(-1);
+    }
+    fprintf(stdout, "Binded to socket %d\n", port);
 
     // and listen!
     event_base_loop(evbase, 0);

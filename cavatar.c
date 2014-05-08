@@ -92,7 +92,7 @@ void route_index(evhtp_request_t *req, void *arg) {
         free(m);
         evhtp_send_reply(req, 301);
     } else {
-        serve_static(req, "../index.html", "text/html");
+        serve_static(req, "static/index.html", "text/html");
     }
 }
 
@@ -102,7 +102,7 @@ void route_index(evhtp_request_t *req, void *arg) {
 void route_favicon(evhtp_request_t *req, void *arg) {
     evhtp_headers_add_header(req->headers_out,
         evhtp_header_new("Cache-Control", "max-age=90000, public", 0, 0));
-    serve_static(req, "../favicon.ico", "image/x-icon");
+    serve_static(req, "static/favicon.ico", "image/x-icon");
 }
 
 /**
@@ -209,6 +209,9 @@ int main() {
     evbase_t *evbase = event_base_new();
     evhtp_t *htp = evhtp_new(evbase, NULL);
     //MagickWandGenesis();
+    
+    // A place for our images
+    mkdir(imgfolder, 0700);
 
     // A few static routes
     evhtp_set_cb(htp, "/", route_index, NULL);

@@ -1,7 +1,14 @@
 cavatar
 *.o
+*.a
 *.orig
 makefile
+Makefile
 build/*
 !build/.gitkeep
 docs/*
+CMakeCache.txt
+CMakeFiles/*
+cmake_install.cmake
+compile_commands.json
+nbproject/*

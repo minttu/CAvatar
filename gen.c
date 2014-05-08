@@ -11,6 +11,7 @@
 #include <sys/types.h>
 
 #include "gen.h"
+#include "config.h"
 
 /**
  * Gets a color from a hex.
@@ -103,19 +104,15 @@ void make_image(const char *hex, struct evbuffer *evb, int side) {
             set_area(&(buffer[(m+((j*2)+1)*scale)*3]), data[i][(j*2)+1], col, scale);
         }
     }
-
-    FILE *stream;
-    char *buf;
-    size_t len;
-
-    stream = open_memstream(&buf, &len);
-    int i = png_image_write_to_stdio(&image, stream, 0, buffer, 0, NULL);
-
-    printf("%d\n", i);
-    evbuffer_add(evb, buf, len);
-
-    //evbuffer_add_printf(evb, "%s", buf);
-
+    char *imgname = malloc(sizeof(char) * 64);
+    sprintf(imgname, "%s/%s_%d.png", imgfolder, hex, side);
+    png_image_write_to_file(&image, imgname, 0, buffer, 0, NULL);
+    int fd = -1;
+    struct stat st;
+    stat(imgname, &st);
+    fd = open(imgname, O_RDONLY);
+    evbuffer_add_file(evb, fd, 0, st.st_size);
+    remove(imgname);
+    free(imgname);
     free(buffer);
-    fclose (stream);
 }

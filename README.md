@@ -19,7 +19,7 @@ Requirements
 * [OpenSSL](https://www.openssl.org/) (only for MD5 currently)
 * [libevent2](http://libevent.org/)
 * [libevhtp](https://github.com/ellzey/libevhtp)
-* [imagemagic 6](http://www.imagemagick.org/)
+* [libpng 1.6](http://www.libpng.org/pub/png/libpng.html)
 * [(future) hiredis](https://github.com/redis/hiredis)
 
 Building

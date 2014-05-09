@@ -33,14 +33,14 @@ long crc(unsigned char *octets, size_t len) {
 char *md5(const char *str, size_t len) {
     MD5_CTX ctx;
     unsigned char digest[16];
-    char *out = (char*)malloc(33);
+    char *out = (char*) malloc(33);
 
     MD5_Init(&ctx);
     MD5_Update(&ctx, str, len);
     MD5_Final(digest, &ctx);
 
-    for(int i = 0; i < 16; i++) {
-        snprintf(&(out[i*2]), 3, "%02x", (unsigned int)digest[i]);
+    for (int i = 0; i < 16; i++) {
+        snprintf(&(out[i * 2]), 3, "%02x", (unsigned int) digest[i]);
     }
     return out;
 }
@@ -63,10 +63,10 @@ char hex_to_char(unsigned char c) {
  * From base16 to base 32
  */
 char *unhex(const char *hex) {
-    char *buffer = malloc(17*sizeof(char));
+    char *buffer = malloc(17 * sizeof (char));
     buffer[16] = 0;
-    for(int i = 0; i < 16; i++) {
-        buffer[i] = hex_to_char(hex[i*2]) | (hex_to_char(hex[i*2+1])<<4);
+    for (int i = 0; i < 16; i++) {
+        buffer[i] = hex_to_char(hex[i * 2]) | (hex_to_char(hex[i * 2 + 1]) << 4);
     }
     return buffer;
 }
@@ -75,7 +75,7 @@ char *unhex(const char *hex) {
  * Returns str made lowercase
  */
 char *makelower(const char *str, size_t t) {
-    char *out = malloc(sizeof(char) * (t + 1));
+    char *out = malloc(sizeof (char) * (t + 1));
     for (int i = 0; i < t; i++) {
         out[i] = tolower(str[i]);
     }

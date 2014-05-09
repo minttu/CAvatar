@@ -132,11 +132,11 @@ void route_image(evhtp_request_t *req, void *arg) {
         if (ind == 1) {
             side = atoi(res);
             if (side == 0) {
-                side = 128;
-            } else if (side < 8) {
-                side = 8;
-            } else if (side > 512) {
-                side = 512;
+                side = defsize;
+            } else if (side < minsize) {
+                side = minsize;
+            } else if (side > maxsize) {
+                side = maxsize;
             }
         }
         res = strtok(NULL, "/");
@@ -159,7 +159,8 @@ void route_generic(evhtp_request_t *req, void *arg) {
 int main() {
     evbase_t *evbase = event_base_new();
     evhtp_t *htp = evhtp_new(evbase, NULL);
-    //MagickWandGenesis();
+
+    fprintf(stdout, "Welcome to CAvatar.\n");
 
     // A place for our images
     mkdir(imgfolder, 0700);

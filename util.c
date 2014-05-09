@@ -29,6 +29,7 @@ long crc(unsigned char *octets, size_t len) {
 
 /**
  * Returns a md5 hash of str.
+ * ToDo: alternative provider
  */
 char *md5(const char *str, size_t len) {
     MD5_CTX ctx;
@@ -60,7 +61,7 @@ char hex_to_char(unsigned char c) {
 }
 
 /**
- * From base16 to base 32
+ * Converts a string from base16 to base 32
  */
 char *unhex(const char *hex) {
     char *buffer = malloc(17 * sizeof (char));
@@ -72,7 +73,7 @@ char *unhex(const char *hex) {
 }
 
 /**
- * Returns str made lowercase
+ * Returns a string made lowercase
  */
 char *makelower(const char *str, size_t t) {
     char *out = malloc(sizeof (char) * (t + 1));

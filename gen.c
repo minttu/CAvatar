@@ -58,17 +58,19 @@ void set_single(png_byte *ptr, int on, color *C) {
         ptr[0] = C->r;
         ptr[1] = C->g;
         ptr[2] = C->b;
+        ptr[3] = 255;
     } else {
-        ptr[0] = bgcol.r;
-        ptr[1] = bgcol.g;
-        ptr[2] = bgcol.b;
+        ptr[0] = 0;
+        ptr[1] = 0;
+        ptr[2] = 0;
+        ptr[3] = 0;
     }
 }
 
 void set_area(png_byte *ptr, int on, color *C, int scale) {
     for (int y = 0; y < scale; y++) {
         for (int x = 0; x < scale; x++) {
-            set_single(&ptr[(x + y * 8 * scale)*3], on, C);
+            set_single(&ptr[(x + y * 8 * scale)*4], on, C);
         }
     }
 }
@@ -102,7 +104,7 @@ void make_image(const char *hex, struct evbuffer *evb, int side) {
 
     memset(&image, 0, (sizeof image));
     image.version = PNG_IMAGE_VERSION;
-    image.format = PNG_FORMAT_RGB;
+    image.format = PNG_FORMAT_RGBA;
     image.opaque = NULL;
     image.width = 8 * scale;
     image.height = 8 * scale;
@@ -114,8 +116,8 @@ void make_image(const char *hex, struct evbuffer *evb, int side) {
     for (int i = 0; i < 8; i++) {
         m = i * 8 * scale*scale;
         for (int j = 0; j < 4; j++) {
-            set_area(&(buffer[(m + (j * 2) * scale)*3]), data[i][(j * 2)], col, scale);
-            set_area(&(buffer[(m + ((j * 2) + 1) * scale)*3]), data[i][(j * 2) + 1], col, scale);
+            set_area(&(buffer[(m + (j * 2) * scale)*4]), data[i][(j * 2)], col, scale);
+            set_area(&(buffer[(m + ((j * 2) + 1) * scale)*4]), data[i][(j * 2) + 1], col, scale);
         }
     }
 

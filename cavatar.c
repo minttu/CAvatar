@@ -143,9 +143,24 @@ void route_image(evhtp_request_t *req, void *arg) {
         ind++;
     }
 
+    char *etag = malloc(sizeof(char) * 1024);
+    sprintf(etag, "\"%s-%d\"", hash, side);
+    
+    evhtp_kv_t *etagin = evhtp_headers_find_header(req->headers_in, "If-None-Match");
+    if(etagin && strcmp(etag, etagin->val) == 0) {
+        free(etag);
+        evhtp_send_reply(req, 304);
+        return;
+    }
+
     make_image(hash, req->buffer_out, side);
     evhtp_headers_add_header(req->headers_out,
             evhtp_header_new("Content-Type", "image/png", 0, 0));
+    evhtp_headers_add_header(req->headers_out,
+            evhtp_header_new("Cache-Control", "public, max-age=36000", 0, 0));
+    evhtp_headers_add_header(req->headers_out,
+            evhtp_header_new("ETag", etag, 0, 1));
+    free(etag);
     evhtp_send_reply(req, 200);
 }
 

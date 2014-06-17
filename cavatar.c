@@ -157,7 +157,7 @@ void route_image(evhtp_request_t *req, void *arg) {
     evhtp_headers_add_header(req->headers_out,
             evhtp_header_new("Content-Type", "image/png", 0, 0));
     evhtp_headers_add_header(req->headers_out,
-            evhtp_header_new("Cache-Control", "public, max-age=36000", 0, 0));
+            evhtp_header_new("Cache-Control", "public", 0, 0));
     evhtp_headers_add_header(req->headers_out,
             evhtp_header_new("ETag", etag, 0, 1));
     free(etag);

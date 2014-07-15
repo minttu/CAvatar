@@ -22,6 +22,10 @@ Requirements
 * [libpng 1.6](http://www.libpng.org/pub/png/libpng.html)
 * [(future) hiredis](https://github.com/redis/hiredis)
 
+**or**
+
+* [Docker](http://www.docker.com/)
+
 Building
 ========
 
@@ -34,6 +38,27 @@ Running
 
 	cd build
 	./cavatar
+
+Using Docker
+============
+
+Build using
+
+	$ docker build -t "cavatar" .
+
+Run using
+
+	$ docker run -p 3002:3002 -d --name "cavatar" cavatar
+
+Stop using
+
+	$ docker stop cavatar
+	
+Remove using
+	
+	$ docker remove cavatar
+	
+See [this reference page](http://docs.docker.com/reference/) (and [this](https://docs.docker.com/reference/run/)!) for more info.
 
 Workings
 ========
